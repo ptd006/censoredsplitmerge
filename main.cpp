@@ -3,11 +3,18 @@
 //
 //   Simulate the coupling used by Schramm in the paper Compositions of random transpositions [ Israel J. Math. 147 221–243],
 //  but generalised so that a proposed merge of two blocks is only accepted after flipping a biased coin (probability beta_m in the
-//  code below).  
+//  code below), as in Mayer-Wolf, Zeitouni, Zerner.
 //
 //  This modified process has Poisson-Dirichlet(1/beta_m) invariant distribution.
 //
+//  I didn't implement rejection of splits, as Schramm's proof works in this case.
+//
 //  PW
+
+
+// Dumps output to /tmp/censoredsplitmerge.csv
+// I load the data into R like this:
+// S<-read.csv("/tmp/censoredsplitmerge.csv", header=F)
 
 #include <iostream>
 #include <numeric>
@@ -19,7 +26,7 @@
 #include <cassert>
 
 // merge probability
-const double beta_m = 0.05;
+const double beta_m = 0.6;
 
 // number of updates to perform
 const int n_steps = 250000;
@@ -94,17 +101,15 @@ double second_biggest_part(std::deque<double> &partition){
 
 int main(int argc, const char * argv[])
 {
-    // **** initial conditions ***** //
+    //  ******** initial conditions *********
     Y.push_back(1.0);
-    // Y.push_back(0.4);
-    Z.push_back(0.5);
-    Z.push_back(0.5);
-    // ********* //
+    Z.push_back(1.0);
+    //Z.push_back(0.5);
+
     
+    // for initial distribution just run the split merge processes independently for a while
     
-    // for initial distribution, do independent Poisson-Dirichlet (i.e. run the split merge processes independently for a while)
-    
-    for (int j = 0; j <1000 ; j++) {
+    for (int j = 0; j <5000 ; j++) {
         // generate U, V = Unif(0,1)
         double U = Unif(gen), V = Unif(gen);
         
@@ -122,7 +127,7 @@ int main(int argc, const char * argv[])
     }
     
     // do same for Z
-    for (int j = 0; j <1000 ; j++) {
+    for (int j = 0; j <5000 ; j++) {
         // generate U, V = Unif(0,1)
         double U = Unif(gen), V = Unif(gen);
         
@@ -139,6 +144,9 @@ int main(int argc, const char * argv[])
         }
     }
     
+    
+    // ******* coupled updates **********
+    
     // initially no matched mass (note can setup initially matched mass above)
     // if (YZ.empty()) YZ.push_back(0.0);
 
@@ -148,15 +156,17 @@ int main(int argc, const char * argv[])
     
     // log file for results in CSV format (for importing into R for analysis)
     std::ofstream log_file;
-    log_file.open("/Users/peter/censoredsplitmerge.csv");
+    log_file.open("/tmp/censoredsplitmerge.csv");
     
     for (int j = 0; j < n_steps ; j++)
     {
         
         // matched mass, largest matched, Y_1, Y_2, Z_1, Z_2,
-        log_file << YZ_mass << ", " <<  biggest_part(YZ) << ","  << biggest_part(Y) << ", " << second_biggest_part(Y) << "," <<  biggest_part(Z) << "," << Y.size() + Z.size() << ",";
+        log_file << YZ_mass << ", " <<  biggest_part(YZ) << ","  << biggest_part(Y) << ", " << second_biggest_part(Y) << "," <<  biggest_part(Z) << "," << second_biggest_part(Z) << "," << Y.size() << "," << Z.size() << "," << YZ.size() << ",";
     
         bool generated_matched_mass = false;
+        
+        bool prop_SM = false;
         
         // sort the deques so blocks of similar size are aligned better
         std::sort (Y.begin(), Y.end());
@@ -236,17 +246,24 @@ int main(int argc, const char * argv[])
                 if (pY == Y.begin()) { // split first block
                     assert(*pY > V - YZ_mass);
                     split_first(Y,V - YZ_mass);
+                    prop_SM = true;
                 }
-                else if (accept_merge) {
-                    merge_part(Y, pY);
+                else {
+                    prop_SM = false;
+                    if (accept_merge) { // merge
+                        merge_part(Y, pY);
+                    }
                 }
                 
                 if (pZ == Z.begin()) { // split first block
                     assert(*pZ > V - YZ_mass);
                     split_first(Z,V - YZ_mass);
+                    prop_SM = !prop_SM;
                 }
-                else if (accept_merge) {
-                    merge_part(Z, pZ);
+                else {
+                    if (accept_merge) {
+                        merge_part(Z, pZ);
+                    }
                 }
                 
                 if (*Y.begin() == *Z.begin()) {
@@ -265,7 +282,7 @@ int main(int argc, const char * argv[])
         }
         
                 
-        if (generated_matched_mass) {
+        if (prop_SM) {
             log_file << "1";
         } else {
             log_file << "0";
@@ -277,16 +294,6 @@ int main(int argc, const char * argv[])
     
     log_file.close();
     
-    // std::cout << ")" << std::endl;
-    
-    //        std::sort (Y.begin(), Y.end());
-    //        std::sort (Z.begin(), Z.end());
-    //        std::sort (YZ.begin(), YZ.end());
-    
-//    std::cout << "Y <- c(";
-//    std::copy(Y.begin(), Y.end(), std::ostream_iterator<double>(std::cout, ", "));
-//    std::copy(YZ.begin(), YZ.end(), std::ostream_iterator<double>(std::cout, ", "));
-//    std::cout << ")" << std::endl;
 
     return 0;
 }
