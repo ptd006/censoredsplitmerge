@@ -26,7 +26,7 @@
 #include <cassert>
 
 // merge probability
-const double beta_m = 0.6;
+const double beta_m = 0.5;
 
 // number of updates to perform
 const int n_steps = 250000;
@@ -109,7 +109,7 @@ int main(int argc, const char * argv[])
     
     // for initial distribution just run the split merge processes independently for a while
     
-    for (int j = 0; j <5000 ; j++) {
+    for (int j = 0; j <10000 ; j++) {
         // generate U, V = Unif(0,1)
         double U = Unif(gen), V = Unif(gen);
         
@@ -127,7 +127,7 @@ int main(int argc, const char * argv[])
     }
     
     // do same for Z
-    for (int j = 0; j <5000 ; j++) {
+    for (int j = 0; j <10000 ; j++) {
         // generate U, V = Unif(0,1)
         double U = Unif(gen), V = Unif(gen);
         
